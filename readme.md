@@ -13,13 +13,13 @@ pip install git+https://github.com/luebken/mdlex.git
 ### Loading Documents
 
 ```bash
-mdlex load /path/to/markdown/files
+mdlex load sample/
 ```
 
 ### Querying Documents
 
 ```bash
-mdlex query "SELECT * FROM documents WHERE json_extract(frontmatter, '$.tags') LIKE '%python%'"
+mdlex query "SELECT json_extract(frontmatter, '$.episode') as episode, COUNT(*) as count FROM documents GROUP BY episode"
 ```
 
 ### Environment Variables
