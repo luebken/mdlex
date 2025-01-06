@@ -1,4 +1,5 @@
 import argparse
+import json
 from .core import init_db, load_docs, query_db, get_db_path
 
 def handle_load_docs(args):
