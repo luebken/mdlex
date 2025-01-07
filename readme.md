@@ -2,6 +2,15 @@
 
 A utility for managing markdown documents with YAML frontmatter in SQLite.
 
+## Why?
+
+A simple markdown / yaml based document tool that can be used on the command line to use with other tools like [llm](https://llm.datasette.io). 
+
+Example:
+```sh
+mdlex query "SELECT title, content FROM documents WHERE tags LIKE '%Picard%'" | llm -s "Briefly list the key themes."
+```
+
 ## Installation
 
 ```bash
@@ -12,6 +21,8 @@ pip install git+https://github.com/luebken/mdlex.git
 
 ### Loading Documents
 
+The markdown documents need to have consistent schema. Currently `mdlex` only supports one schema.
+
 ```bash
 mdlex load sample/
 ```
@@ -19,7 +30,17 @@ mdlex load sample/
 ### Querying Documents
 
 ```bash
-mdlex query "SELECT json_extract(frontmatter, '$.episode') as episode, COUNT(*) as count FROM documents GROUP BY episode"
+# Query schema aware view
+mdlex query "SELECT episode, COUNT(*) as count FROM documents GROUP BY episode"
+# Query raw documents
+mdlex query "SELECT json_extract(frontmatter, '$.episode') as episode, COUNT(*) as count FROM documents_raw GROUP BY episode"
+
+# By Date
+mdlex query "SELECT date, filepath, title FROM documents ORDER BY date DESC NULLS LAST"
+# All Tags
+mdlex query "SELECT json_each.value as tag, COUNT(*) as count FROM documents, json_each(tags) GROUP BY json_each.value ORDER BY count DESC"
+# Tag
+mdlex query "SELECT title, content FROM documents WHERE tags LIKE '%Picard%'"
 ```
 
 ### Environment Variables
