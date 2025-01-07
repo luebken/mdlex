@@ -15,14 +15,14 @@ def init_db(db_path: str, directory: str) -> sqlite3.Connection:
 
     cursor = conn.cursor()
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS documents (
+        CREATE TABLE IF NOT EXISTS documents_raw (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             filepath TEXT UNIQUE,
             frontmatter JSON,
             content TEXT
         )
     """)
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_filepath ON documents(filepath)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_filepath ON documents_raw(filepath)")
     
     # Analyze schema and create views
     schema = analyze_frontmatter_schema(directory)
@@ -65,7 +65,7 @@ def create_schema_views(conn: sqlite3.Connection, schema: Dict[str, set]) -> Non
         CREATE VIEW document_properties AS 
         SELECT 
             {', '.join(view_columns)}
-        FROM documents
+        FROM documents_raw
     """
     
     cursor.execute(create_view_sql)
@@ -132,7 +132,7 @@ def load_docs(conn: sqlite3.Connection, directory: str) -> int:
             frontmatter_json = json.dumps(frontmatter, default=serialize_dates)
 
             cursor.execute("""
-                INSERT INTO documents (filepath, frontmatter, content)
+                INSERT INTO documents_raw (filepath, frontmatter, content)
                 VALUES (?, ?, ?)
                 ON CONFLICT(filepath) DO UPDATE SET
                     frontmatter = excluded.frontmatter,
