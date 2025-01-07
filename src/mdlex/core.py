@@ -56,8 +56,8 @@ def create_schema_views(conn: sqlite3.Connection, schema: Dict[str, set]) -> Non
         DROP VIEW IF EXISTS document_properties
     """)
     
-    # Create base view with all extracted properties
-    view_columns = ["id", "filepath"]
+    # Create base view with id, filepath, content, and all frontmatter properties
+    view_columns = ["id", "filepath", "content"]
     for prop_name in schema.keys():
         view_columns.append(f"json_extract(frontmatter, '$.{prop_name}') as {prop_name}")
     
