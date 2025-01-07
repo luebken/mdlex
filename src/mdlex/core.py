@@ -51,9 +51,9 @@ def create_schema_views(conn: sqlite3.Connection, schema: Dict[str, set]) -> Non
     """Create views for each property in the frontmatter schema"""
     cursor = conn.cursor()
     
-    # First, drop any existing document_properties view
+    # First, drop any existing documents view
     cursor.execute("""
-        DROP VIEW IF EXISTS document_properties
+        DROP VIEW IF EXISTS documents
     """)
     
     # Create base view with id, filepath, content, and all frontmatter properties
@@ -62,7 +62,7 @@ def create_schema_views(conn: sqlite3.Connection, schema: Dict[str, set]) -> Non
         view_columns.append(f"json_extract(frontmatter, '$.{prop_name}') as {prop_name}")
     
     create_view_sql = f"""
-        CREATE VIEW document_properties AS 
+        CREATE VIEW documents AS 
         SELECT 
             {', '.join(view_columns)}
         FROM documents_raw
