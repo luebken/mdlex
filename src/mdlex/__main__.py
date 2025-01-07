@@ -1,11 +1,12 @@
 import argparse
 import json
+import sqlite3
 from .core import init_db, load_docs, query_db, get_db_path
 
 def handle_load_docs(args):
     """Handle the load_docs command"""
     db_path = get_db_path(args.db_path)
-    conn = init_db(db_path)
+    conn = init_db(db_path, args.directory)
     try:
         docs_count = load_docs(conn, args.directory)
         print(f"Processed {docs_count} documents")
@@ -15,7 +16,8 @@ def handle_load_docs(args):
 def handle_query_db(args):
     """Handle the query_db command"""
     db_path = get_db_path(args.db_path)
-    conn = init_db(db_path)
+    conn = sqlite3.connect(db_path)
+
     try:
         results = query_db(conn, args.sql, tuple(args.params))
         print(json.dumps(results, indent=2))

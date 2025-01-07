@@ -8,8 +8,8 @@ from typing import Dict, Any, List
 import re
 import argparse
 
-def init_db(db_path: str) -> sqlite3.Connection:
-    """Initialize SQLite database and return connection"""
+def init_db(db_path: str, directory: str) -> sqlite3.Connection:
+    """Initialize SQLite database with schema-based views"""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
@@ -23,9 +23,79 @@ def init_db(db_path: str) -> sqlite3.Connection:
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_filepath ON documents(filepath)")
+    
+    # Analyze schema and create views
+    schema = analyze_frontmatter_schema(directory)
+    
+    # Print schema information
+    print("\nFrontmatter Schema:")
+    for prop, types in schema.items():
+        type_names = [t.__name__ for t in types]
+        print(f"  {prop}: {', '.join(type_names)}")
+    
+    # Check for schema consistency
+    inconsistent_props = {prop: types for prop, types in schema.items() if len(types) > 1}
+    if inconsistent_props:
+        print("\nWarning: Inconsistent property types found:")
+        for prop, types in inconsistent_props.items():
+            type_names = [t.__name__ for t in types]
+            print(f"  {prop}: {', '.join(type_names)}")
+    
+    # Create views based on schema
+    create_schema_views(conn, schema)
+    
     conn.commit()
-
     return conn
+
+def create_schema_views(conn: sqlite3.Connection, schema: Dict[str, set]) -> None:
+    """Create views for each property in the frontmatter schema"""
+    cursor = conn.cursor()
+    
+    # First, drop any existing document_properties view
+    cursor.execute("""
+        DROP VIEW IF EXISTS document_properties
+    """)
+    
+    # Create base view with all extracted properties
+    view_columns = ["id", "filepath"]
+    for prop_name in schema.keys():
+        view_columns.append(f"json_extract(frontmatter, '$.{prop_name}') as {prop_name}")
+    
+    create_view_sql = f"""
+        CREATE VIEW document_properties AS 
+        SELECT 
+            {', '.join(view_columns)}
+        FROM documents
+    """
+    
+    cursor.execute(create_view_sql)
+    conn.commit()
+    
+def analyze_frontmatter_schema(directory: str) -> Dict[str, set]:
+    """
+    Analyze all markdown files to determine frontmatter schema.
+    Returns a dictionary of property names and their value types.
+    """
+    schema = {}
+    directory = Path(directory).resolve()
+
+    for filepath in directory.rglob("*.md"):
+        try:
+            with filepath.open('r', encoding='utf-8') as f:
+                content = f.read()
+            
+            frontmatter, _ = extract_frontmatter(content)
+            
+            # For each property in the frontmatter
+            for key, value in frontmatter.items():
+                if key not in schema:
+                    schema[key] = set()
+                schema[key].add(type(value))
+
+        except Exception as e:
+            print(f"Error analyzing schema in {filepath}: {e}")
+    
+    return schema
 
 def extract_frontmatter(content: str) -> tuple[dict, str]:
     """Extract YAML front matter from markdown content"""
@@ -81,7 +151,12 @@ def query_db(conn: sqlite3.Connection, sql: str, params: tuple = ()) -> List[Dic
     """Execute a query and return results"""
     cursor = conn.cursor()
     cursor.execute(sql, params)
-    return [dict(row) for row in cursor.fetchall()]
+    
+    # Get column names from cursor description
+    columns = [desc[0] for desc in cursor.description]
+    
+    # Convert rows to dictionaries using column names
+    return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
 def get_db_path(args_db_path: str | None) -> str:
     """
