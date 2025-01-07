@@ -8,7 +8,14 @@ A simple markdown / yaml based document tool that can be used on the command lin
 
 Example:
 ```sh
-mdlex query "SELECT title, content FROM documents WHERE tags LIKE '%Picard%'" | llm -s "Briefly list the key themes."
+$ mdlex query "SELECT title, content FROM documents WHERE tags LIKE '%Picard%'" | llm -s "Briefly list the key themes."
+Key Themes:
+1. Exploration and Discovery
+2. Humans vs. Higher Powers
+3. Reality vs. Fiction
+4. Diplomacy and Responsibility
+5. Teamwork and Problem-Solving
+6. Dependence on Technology
 ```
 
 ## Installation
