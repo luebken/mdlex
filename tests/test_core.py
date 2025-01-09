@@ -14,6 +14,8 @@ from mdlex.core import (
     create_schema_views
 )
 
+### Fixtures ###
+
 @pytest.fixture
 def temp_db(tmp_path):
     """Create a temporary database"""
@@ -49,6 +51,60 @@ count: 42
 Another test document.""")
     
     return str(docs_dir)
+
+@pytest.fixture
+def inconsistent_docs(tmp_path):
+    """Create sample markdown documents with inconsistent schema"""
+    docs_dir = tmp_path / "inconsistent_docs"
+    docs_dir.mkdir()
+    
+    # Document with initial schema
+    doc1 = docs_dir / "doc1.md"
+    doc1.write_text("""---
+title: "Test Doc 1"
+tags: ["tag1", "tag2"]
+count: 42
+---
+# Test Content 1""")
+    
+    # Document with inconsistent schema
+    doc2 = docs_dir / "doc2.md"
+    doc2.write_text("""---
+title: "Test Doc 2"
+tags: "single-tag"
+count: "43"
+---
+# Test Content 2""")
+    
+    return str(docs_dir)
+
+@pytest.fixture
+def consistent_docs(tmp_path):
+    """Create sample markdown documents with consistent schema"""
+    docs_dir = tmp_path / "consistent_docs"
+    docs_dir.mkdir()
+    
+    # Document with consistent schema
+    doc1 = docs_dir / "doc1.md"
+    doc1.write_text("""---
+title: "Test Doc 1"
+tags: ["tag1", "tag2"]
+count: 42
+---
+# Test Content 1""")
+    
+    # Another document with same schema
+    doc2 = docs_dir / "doc2.md"
+    doc2.write_text("""---
+title: "Test Doc 2"
+tags: ["tag3"]
+count: 43
+---
+# Test Content 2""")
+    
+    return str(docs_dir)
+
+### Tests ###
 
 def test_extract_frontmatter():
     """Test YAML frontmatter extraction"""
@@ -127,3 +183,31 @@ def test_database_operations(temp_db, sample_docs):
     assert test_doc[0]["title"] == "Test Document 1"
     
     conn.close()
+    
+def test_init_db_fails_on_inconsistent_schema(temp_db, inconsistent_docs):
+    """Test that init_db fails when schema is inconsistent"""
+    with pytest.raises(ValueError) as exc_info:
+        init_db(temp_db, inconsistent_docs)
+    
+    # Verify error message contains both inconsistencies
+    error_msg = str(exc_info.value)
+    assert "Schema inconsistencies found:" in error_msg
+    assert "tags:" in error_msg and "list, str" in error_msg
+    assert "count:" in error_msg and "int, str" in error_msg
+
+def test_init_db_succeeds_on_consistent_schema(temp_db, consistent_docs):
+    """Test that init_db succeeds when schema is consistent"""
+    conn = init_db(temp_db, consistent_docs)
+    try:
+        # Verify that the database was initialized
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        assert any(table[0] == 'documents_raw' for table in tables)
+        
+        # Verify that views were created
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='view'")
+        views = cursor.fetchall()
+        assert any(view[0] == 'documents' for view in views)
+    finally:
+        conn.close()

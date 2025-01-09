@@ -36,10 +36,12 @@ def init_db(db_path: str, directory: str) -> sqlite3.Connection:
     # Check for schema consistency
     inconsistent_props = {prop: types for prop, types in schema.items() if len(types) > 1}
     if inconsistent_props:
-        print("\nWarning: Inconsistent property types found:")
+        conn.close()
+        error_msg = "Schema inconsistencies found:\n"
         for prop, types in inconsistent_props.items():
             type_names = [t.__name__ for t in types]
-            print(f"  {prop}: {', '.join(type_names)}")
+            error_msg += f"  {prop}: {', '.join(type_names)}\n"
+        raise ValueError(error_msg.strip())
     
     # Create views based on schema
     create_schema_views(conn, schema)
