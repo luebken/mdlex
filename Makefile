@@ -5,3 +5,6 @@ catdevfiles:
 # Usees https://llm.datasette.io/
 llm-review:
 	$(MAKE) catdevfiles | llm -s review
+
+test:
+	python -m pytest tests/
